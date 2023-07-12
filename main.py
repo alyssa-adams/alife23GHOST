@@ -9,10 +9,19 @@ import clip
 import torch
 import torch.nn.functional as F
 import torch.utils.checkpoint
+# cuda 11.6, torch 1.13.1, torchaudio 0.13.1, torchvision 0.14.1
 
 # for the text
-import speech_recognition as sr
-import pyttsx3
+#import speech_recognition as sr
+#import pyttsx3
+
+# source .venv/bin/activate
+
+# attach USB devices in WSL2: https://devblogs.microsoft.com/commandline/connecting-usb-devices-to-wsl/
+# in admin command prompt: usbipd wsl list
+# first, usbipd bind --busid 1-9 --force
+# then, usbipd wsl attach --busid <busid>
+# when done, usbipd wsl detach --busid <busid>
 
 
 # for the images
@@ -93,10 +102,10 @@ def attn_mask(frame, lastw):
 
 # for the text
 # initialize the speech recognizer
-r = sr.Recognizer()
-r.pause_threshold = 0.5  # seconds of non-speaking audio before a phrase is considered complete
-r.phrase_threshold = 0.2  # minimum seconds of speaking audio before we consider the speaking audio a phrase - values below this are ignored (for filtering out clicks and pops)
-r.non_speaking_duration = 0.1  # seconds of non-speaking audio to keep on both sides of the recording
+#r = sr.Recognizer()
+#r.pause_threshold = 0.5  # seconds of non-speaking audio before a phrase is considered complete
+#r.phrase_threshold = 0.2  # minimum seconds of speaking audio before we consider the speaking audio a phrase - values below this are ignored (for filtering out clicks and pops)
+#r.non_speaking_duration = 0.1  # seconds of non-speaking audio to keep on both sides of the recording
 
 
 if __name__ == '__main__':
@@ -110,13 +119,14 @@ if __name__ == '__main__':
     for layer in model.visual.transformer.resblocks:
         layer.resblock_attn_forward = resblock_attn_forward.__get__(layer)
 
-    vid = cv2.VideoCapture(0)
+    vid = cv2.VideoCapture(-1)
     lastw = np.zeros((336, 336, 1))  # get the right frame size automatically
 
     text_to_show = ''
 
     while True:
 
+        """
         # listen to any speech
         try:  # todo: speed this part up. Frames refresh at rate, but this sometimes adds new text. If new text, then add. Two while loops with multiprocessing?
 
@@ -140,6 +150,7 @@ if __name__ == '__main__':
 
         except sr.UnknownValueError:
             text_to_show = "?????"
+        """
 
         # take the camera image and add the mask
         ret, frame = vid.read()
