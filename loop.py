@@ -21,10 +21,10 @@ import torch.utils.checkpoint
 # torch 1.13.1, torchaudio 0.13.1, torchvision 0.14.1: pip install torch==1.13.1+cu117 torchvision==0.14.1+cu117 torchaudio==0.13.1 --extra-index-url https://download.pytorch.org/whl/cu117
 
 # for the text
-from text_part import TextPart
+from text_part import ListenPart, TextAttnPart
 
 # supress warnings
-os.close(sys.stderr.fileno())
+#os.close(sys.stderr.fileno())
 
 
 def video_part():
@@ -65,7 +65,7 @@ def video_part():
         attn_mask = self.attn_mask.to(dtype=x.dtype, device=x.device) if self.attn_mask is not None else None
 
         z = self.ln_1(x)
-        attn_pat, attn_weights = self.attn(z, z, z, need_weights=True, average_attn_weights=True, attn_mask=attn_mask)
+        attn_pat, attn_weights = self.attn(z, z, z, need_weights=True, average_attn_weights=True, attn_mask=attn_mask) # average_attn_weights=True,
         attn_pat = attn_pat[0]
 
         x = x + attn_pat
@@ -73,20 +73,20 @@ def video_part():
 
         return x, attn_weights
 
-    def attn_mask(frame, lastw):
+    def attn_mask(frame, lastw, layer):
 
         with torch.no_grad():
 
             with torch.autocast("cuda"):
-
-                frame = Image.fromarray(frame[:480, 80:80 + 480, :])
+                frame = Image.fromarray(frame[:456, 612//2-228:612//2+228, :]) # 456x456 slice
                 frame = frame.resize((336, 336), Image.NEAREST)
 
                 z = preprocess(frame).unsqueeze(0).cuda()
                 z, attn = model.visual.vision_attn_forward(z)
 
                 # attn = torch.cat(attn,0).mean(0)[0,1:]
-                attn = torch.cat(attn, 0)[-1, 0, 1:]
+                attn = torch.cat(attn, 0)
+                attn = attn[layer, 0, 1:] # Visualize the last attention layer
                 GRID = int(math.sqrt(attn.shape[0]))
                 attn = attn.view(1, 1, GRID, GRID)
                 attn = F.upsample_bilinear(attn.view((1, 1, GRID, GRID)), scale_factor=frame.width // GRID)
@@ -103,45 +103,51 @@ def video_part():
     # variables for the video stream
     device = "cuda"
     model, preprocess = clip.load("ViT-L/14@336px", device=device)
-    model.visual.vision_attn_forward = vision_attn_forward.__get__(model.visual)
-    model.visual.transformer.transformer_attn_forward = transformer_attn_forward.__get__(model.visual.transformer)
+    model.visual.vision_attn_forward = vision_attn_forward.__get__(model.visual) # model.visual -> self
+    model.visual.transformer.transformer_attn_forward = transformer_attn_forward.__get__(model.visual.transformer) # model.visual.transformer -> self
     for layer in model.visual.transformer.resblocks:
         layer.resblock_attn_forward = resblock_attn_forward.__get__(layer)
-    vid = cv2.VideoCapture(0)
+    vid = cv2.VideoCapture(-1)
     lastw = np.zeros((336, 336, 1))  # get the right frame size automatically
 
-    # TODO: frame size for headset
-    # TODO: Automatic font spacing
-    # TODO: Font color based on average frame color (filler color)
-    # TODO: Font lightness/darkness based on weight
-
-    # TODO: BONUS! Fade out text, better font
-    # TODO: BONUS! Add in ghost trails
-
-    text_up = False
+    # set initial values for video loop
+    display_words = False
+    display_weights = False
+    layer = 0
 
     while True:
 
+        # loop over video frames and cycle through attention layers
         ret, frame = vid.read()
-        frame, lastw = attn_mask(frame, lastw)
+        frame, lastw = attn_mask(frame, lastw, layer//2)
+        layer = (layer+1) % 47
 
-        # add in the text
-        if os.path.isfile('text'):
+        # look for spoken words, if yes then turn on display_words variable
+        if os.path.isfile('text_attns'):
 
-            text_up = True
-
-            f = open("text", "r")
+            f = open("text_attns", "r")
             contents = f.read()
             contents = ast.literal_eval(contents)
-            text_to_show = contents[0]
-            attention_weights = contents[1]
-            os.remove("text")
+            display_words = contents[0]
+            display_weights = contents[1]
 
             # leave the text up for a few frames
             t0 = time.time()
 
-        if text_up:
+            # todo
+            # or until a new phrase has been spoken
 
+        # if display_words is on, display the words on the existing frame
+        if display_words:
+
+            coordinates = (100, 100)
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            fontScale = 1
+            color = (161, 164, 255)
+            thickness = 1
+            frame = cv2.putText(frame, display_words, coordinates, font, fontScale, color, thickness, cv2.LINE_AA)
+
+            """
             for i, word in enumerate(text_to_show.split()):
 
                 space_between_words = 20
@@ -153,16 +159,27 @@ def video_part():
                 color = (161, 164, 255)
                 thickness = 1
                 frame = cv2.putText(frame, word, coordinates, font, fontScale, color, thickness, cv2.LINE_AA)
+            """
 
         # show the image
-        cv2.imshow('frame', frame)
+        scale = 1
+        frame = cv2.resize(frame, (336 * scale, 336 * scale))
+        cv2.imshow('frame1', frame)
+        cv2.imshow('frame2', frame)
 
-        # leave the text up for 5 seconds
-        if text_up:
+        # if display-words is on, check how long they've been up
+        # 1 second per phrase, + 0.5 second per word after that
+        # turn display_words variable off again
+        # delete the text and text_attn files
+        if display_words:
+
             tf = time.time()
             dt = tf - t0
-            if dt > len(text_to_show.split())/2:
-                text_up = False
+            if dt > 1 + len(display_words.split()) / 2:
+
+                display_words = False
+                os.remove("text")
+                os.remove("text_attns")
 
         # quit if 'q' is pressed
         if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -170,22 +187,43 @@ def video_part():
 
     vid.release()
     cv2.destroyAllWindows()
+    os.remove("text")
+    os.remove("text_attns")
     quit()
 
 
-def text_part():
+def listen_part():
 
-    listener = TextPart()
+    listener = ListenPart()
     while True:
-        listener.listen()
+        if os.path.isfile('text'):
+            continue
+        else:
+            listener.listen()
+
+
+def text_attender_part():
+
+    textattender = TextAttnPart()
+    while True:
+        if os.path.isfile('text'):
+            continue
+        else:
+            textattender.text_attn()
 
 
 if __name__ == '__main__':
 
     set_start_method("spawn")
+
     p1 = Process(target=video_part)
-    p2 = Process(target=text_part)
+    p2 = Process(target=listen_part)
+    p3 = Process(target=text_attender_part)
+
     p1.start()
     p2.start()
+    p3.start()
+
+    #video_part()
 
     quit()
