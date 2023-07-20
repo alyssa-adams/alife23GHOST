@@ -3,6 +3,7 @@
 
 import speech_recognition as sr
 import ecco
+import time
 import os
 
 
@@ -16,8 +17,7 @@ class ListenPart:
         self.r.phrase_threshold = 0.05  # minimum seconds of speaking audio before we consider the speaking audio a phrase - values below this are ignored (for filtering out clicks and pops)
         self.r.non_speaking_duration = 0.05  # seconds of non-speaking audio to keep on both sides of the recording
 
-    def listen(self):
-
+        # TODO: reset this is silence for more than 10 seconds
         # wait for a second to let the recognizer
         # adjust the energy threshold based on
         # the surrounding noise level
@@ -25,6 +25,8 @@ class ListenPart:
         with sr.Microphone() as source2:
             self.r.adjust_for_ambient_noise(source2, duration=5)
         print("Ambient noise adjusted")
+
+    def listen(self):
 
         # Loop infinitely for user to speak
         while (1):
@@ -64,20 +66,30 @@ class TextAttnPart:
 
         if os.path.isfile('text'):
 
+            time.sleep(0.1)
+
             try:
 
                 f = open("text", "r")
                 spoken_words = f.read()
-                print(spoken_words)
 
-                output = self.lm.generate(spoken_words, generate=1, do_sample=False, attribution=['ig'])
-                output.primary_attributions(attr_method='ig')
-                attention_weights = list(output.attribution['ig'][0])
+                sentence_pieces = []
+                for i, word in enumerate(spoken_words.split()):
+                    sentence_piece = ' '.join(spoken_words.split()[:i+1])
+                    sentence_pieces.append(sentence_piece)
 
-                # TODO: loop through all lengths
+                sentence_pieces_weights = []
+                for sentence_piece in sentence_pieces:
+                    output = self.lm.generate(sentence_piece, generate=1, do_sample=False, attribution=['ig'])
+                    output.primary_attributions(attr_method='ig')
+                    sentence_pieces_weight = list(output.attribution['ig'][0])
+
+                    # normalize the values between 0 and 1 to visualize easier
+                    sentence_pieces_weight = sentence_pieces_weight / max(sentence_pieces_weight)
+                    sentence_pieces_weights.append(list(sentence_pieces_weight))
 
                 f = open("text_attns", "a")
-                f.write(str([spoken_words, attention_weights]))
+                f.write(str([sentence_pieces, sentence_pieces_weights]))
                 f.close()
 
             except:

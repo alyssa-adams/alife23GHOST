@@ -23,9 +23,6 @@ import torch.utils.checkpoint
 # for the text
 from text_part import ListenPart, TextAttnPart
 
-# supress warnings
-#os.close(sys.stderr.fileno())
-
 
 def video_part():
 
@@ -112,7 +109,6 @@ def video_part():
 
     # set initial values for video loop
     display_words = False
-    display_weights = False
     layer = 0
 
     while True:
@@ -123,60 +119,61 @@ def video_part():
         layer = (layer+1) % 47
 
         # look for spoken words, if yes then turn on display_words variable
-        if os.path.isfile('text_attns'):
+        if os.path.isfile('text_attns') and not display_words:
 
             f = open("text_attns", "r")
             contents = f.read()
             contents = ast.literal_eval(contents)
             display_words = contents[0]
-            display_weights = contents[1]
+            sentence_pieces_weights = contents[1]
 
             # leave the text up for a few frames
+            # also use this to wait 0.5s between displaying each word and changing the weight
             t0 = time.time()
-
-            # todo
-            # or until a new phrase has been spoken
+            n = 0
+            max_n = len(display_words) - 1
 
         # if display_words is on, display the words on the existing frame
         if display_words:
 
-            coordinates = (100, 100)
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            fontScale = 1
-            color = (161, 164, 255)
-            thickness = 1
-            frame = cv2.putText(frame, display_words, coordinates, font, fontScale, color, thickness, cv2.LINE_AA)
+            sentence_piece = display_words[n]
 
-            """
-            for i, word in enumerate(text_to_show.split()):
+            # update the screen with a new word every half a second
+            # only if there are more words to add
+            if n < max_n:
+                tf = time.time()
+                dt = tf - t0
+                if dt > 0.2:
+                    n += 1
+                    t0 = time.time()
+
+            for i, word in enumerate(sentence_piece.split()):
 
                 space_between_words = 20
-                padding = 50
+                padding = 100
 
                 coordinates = (padding, padding + space_between_words * i)
                 font = cv2.FONT_HERSHEY_SIMPLEX
-                fontScale = attention_weights[i] * len(text_to_show.split())
-                color = (161, 164, 255)
+                fontScale = sentence_pieces_weights[n][i] + 0.1
+                color = (219, 219, 219)
                 thickness = 1
+
                 frame = cv2.putText(frame, word, coordinates, font, fontScale, color, thickness, cv2.LINE_AA)
-            """
 
         # show the image
-        scale = 1
+        scale = 3
         frame = cv2.resize(frame, (336 * scale, 336 * scale))
         cv2.imshow('frame1', frame)
         cv2.imshow('frame2', frame)
 
-        # if display-words is on, check how long they've been up
-        # 1 second per phrase, + 0.5 second per word after that
+        # if display-words is on, check how long they've been up since the last word was added
         # turn display_words variable off again
         # delete the text and text_attn files
         if display_words:
 
             tf = time.time()
             dt = tf - t0
-            if dt > 1 + len(display_words.split()) / 2:
-
+            if dt > 2:
                 display_words = False
                 os.remove("text")
                 os.remove("text_attns")
@@ -206,13 +203,16 @@ def text_attender_part():
 
     textattender = TextAttnPart()
     while True:
-        if os.path.isfile('text'):
+        if os.path.isfile('text_attns'):
             continue
-        else:
+        elif os.path.isfile('text'):
             textattender.text_attn()
 
 
 if __name__ == '__main__':
+
+    # supress warnings
+    #os.close(sys.stderr.fileno())
 
     set_start_method("spawn")
 
@@ -223,7 +223,5 @@ if __name__ == '__main__':
     p1.start()
     p2.start()
     p3.start()
-
-    #video_part()
 
     quit()
