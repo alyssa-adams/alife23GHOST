@@ -118,6 +118,25 @@ def video_part():
         frame, lastw = attn_mask(frame, lastw, layer//2)
         layer = (layer+1) % 47
 
+        # always display "what i hear     (what i think)"
+        h_space_between_words = 110
+        v_space_between_words = 20
+        h_padding = 70
+        v_padding = 120
+        coordinates = (h_padding, v_padding)
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        fontScale = 0.3
+        color = (219, 219, 219)
+        thickness = 1
+        frame = cv2.putText(frame, "__what i hear__", coordinates, font, fontScale, color, thickness, cv2.LINE_AA)
+
+        coordinates = (h_padding + h_space_between_words, v_padding)
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        fontScale = 0.3
+        color = (219, 219, 219)
+        thickness = 1
+        frame = cv2.putText(frame, "__(what i think)__", coordinates, font, fontScale, color, thickness, cv2.LINE_AA)
+
         # look for spoken words, if yes then turn on display_words variable
         if os.path.isfile('text_attns') and not display_words:
 
@@ -126,6 +145,7 @@ def video_part():
             contents = ast.literal_eval(contents)
             display_words = contents[0]
             sentence_pieces_weights = contents[1]
+            thinking_words = contents[2]
 
             # leave the text up for a few frames
             # also use this to wait 0.5s between displaying each word and changing the weight
@@ -149,16 +169,22 @@ def video_part():
 
             for i, word in enumerate(sentence_piece.split()):
 
-                space_between_words = 20
-                padding = 100
-
-                coordinates = (padding, padding + space_between_words * i)
+                # display the word it heard
+                coordinates = (h_padding, v_padding + v_space_between_words * (i+1))
                 font = cv2.FONT_HERSHEY_SIMPLEX
-                fontScale = sentence_pieces_weights[n][i] + 0.1
+                fontScale = sentence_pieces_weights[n][i] * 0.6
                 color = (219, 219, 219)
                 thickness = 1
-
                 frame = cv2.putText(frame, word, coordinates, font, fontScale, color, thickness, cv2.LINE_AA)
+
+                # display the word it thought
+                thinking_word = thinking_words.split()[i]
+                coordinates = (h_padding + h_space_between_words, v_padding + v_space_between_words * (i+1))
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                fontScale = 0.3
+                color = (219, 219, 219)
+                thickness = 1
+                frame = cv2.putText(frame, "(" + thinking_word + ")", coordinates, font, fontScale, color, thickness, cv2.LINE_AA)
 
         # show the image
         scale = 3
@@ -211,9 +237,6 @@ def text_attender_part():
 
 if __name__ == '__main__':
 
-    # supress warnings
-    #os.close(sys.stderr.fileno())
-
     set_start_method("spawn")
 
     p1 = Process(target=video_part)
@@ -223,5 +246,7 @@ if __name__ == '__main__':
     p1.start()
     p2.start()
     p3.start()
+
+    #video_part()
 
     quit()

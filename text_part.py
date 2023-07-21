@@ -79,8 +79,11 @@ class TextAttnPart:
                     sentence_pieces.append(sentence_piece)
 
                 sentence_pieces_weights = []
+                output_guesses = []
+
                 for sentence_piece in sentence_pieces:
-                    output = self.lm.generate(sentence_piece, generate=1, do_sample=False, attribution=['ig'])
+
+                    output = self.lm.generate(sentence_piece, generate=1, temperature=50, do_sample=False, attribution=['ig'])
                     output.primary_attributions(attr_method='ig')
                     sentence_pieces_weight = list(output.attribution['ig'][0])
 
@@ -88,8 +91,15 @@ class TextAttnPart:
                     sentence_pieces_weight = sentence_pieces_weight / max(sentence_pieces_weight)
                     sentence_pieces_weights.append(list(sentence_pieces_weight))
 
+                    # guess the output
+                    output_guess = output.tokens[0][-1]  # TODO: turn into regular text?
+                    output_guesses.append(output_guess)
+
+                # connect the thoughts into a sentence
+                output_guesses = ' '.join(output_guesses)
+
                 f = open("text_attns", "a")
-                f.write(str([sentence_pieces, sentence_pieces_weights]))
+                f.write(str([sentence_pieces, sentence_pieces_weights, output_guesses]))
                 f.close()
 
             except:
