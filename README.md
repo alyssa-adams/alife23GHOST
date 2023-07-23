@@ -15,18 +15,23 @@ torch 1.13.1, torchaudio 0.13.1, torchvision 0.14.1: pip install torch==1.13.1+c
 
 Then, use a USB camera and pretend it is the camera and mic from the headset. That is just to ensure all your Python-side software is working correctly.
 
-The final step is to get Linux to recognize the camera/mic on the Vive as a webcam and the video display as a second monitor.
+# Run loop.py to test with a regular webcam
+
+The second part is to get Linux to recognize the camera/mic on the Vive as a webcam and the video display as a second monitor.
 To do that, you'll need to install SteamVR for Linux (https://www.addictivetips.com/ubuntu-linux-tips/steam-vr-on-linux/), 
 then make sure you do these steps (https://github.com/ValveSoftware/SteamVR-for-Linux/blob/master/README.md).
-You might have to change some NVIDIA driver files manually.
+You might have to change some NVIDIA driver files manually. This part takes a lot of troubleshooting and following error messages. Ganbate!
 
-Just so you know, I couldn't actually get SteamVR to open; it kept throwing a 307 error. 
-But that's alright; just the process of installing SteamVR installed something critical anyways.
+So that you know, I couldn't get SteamVR to open and recognize the headset; it kept throwing a 307 error. 
+But that's alright; just the process of installing SteamVR installed something critical for Ubuntu to see the headset in the system. Use 
+sudo apt-get install v4l-utils
+v4l2-ctl --list-devices
+To see if Ubuntu sees the webcam.
+Test if the camera/mic works by using "sudo cheese" in the terminal (regular "cheese" won't see the camera).
 It takes a lot of Linux troubleshooting to work!
 
-Random tip, don't install Chrome. It will break the driver permissions. If you already have Chrome, uninstall it and then unistall SteamVR and then reinstall SteamVR.
+Random tip, don't install Chrome. It will break the driver permissions. If you already have Chrome, uninstall it and then uninstall SteamVR, and then reinstall SteamVR.
 
-Test if the camera/mic works by using "sudo cheese" in the terminal.
 
 If everything works, you should see two windows pop up showing the live feed from your Vive!
 Go ahead and drag those windows into the Vive view (one window per eye).
