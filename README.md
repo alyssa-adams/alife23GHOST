@@ -1,3 +1,5 @@
+# Ghosts in a Shell (ALIFE23)
+
 This is the code repository for Ghosts in a Shell, seen at ALIFE23.
 
 For this project, I used an HTC Vive headset (none of the controllers or silly floor-stick-camera things), 
@@ -8,8 +10,8 @@ The idea is first to install CUDA, then create your venv in Python 3.10, then in
 I made a requirements file to show the exact Python 3.10 packages I installed in my venv. 
 
 In addition, I used this combination:
-# cuda 11.7 (on ubuntu 22.04, this worked, but I had to do it twice, install, uninstall, then reinstall: https://gist.github.com/primus852/b6bac167509e6f352efb8a462dcf1854)
-# torch 1.13.1, torchaudio 0.13.1, torchvision 0.14.1: pip install torch==1.13.1+cu117 torchvision==0.14.1+cu117 torchaudio==0.13.1 --extra-index-url https://download.pytorch.org/whl/cu117
+cuda 11.7 (on ubuntu 22.04, this worked, but I had to do it twice, install, uninstall, then reinstall: https://gist.github.com/primus852/b6bac167509e6f352efb8a462dcf1854)
+torch 1.13.1, torchaudio 0.13.1, torchvision 0.14.1: pip install torch==1.13.1+cu117 torchvision==0.14.1+cu117 torchaudio==0.13.1 --extra-index-url https://download.pytorch.org/whl/cu117
 
 Then, use a USB camera and pretend it is the camera and mic from the headset. That is just to ensure all your Python-side software is working correctly.
 
