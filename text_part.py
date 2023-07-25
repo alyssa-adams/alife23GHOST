@@ -23,7 +23,7 @@ class ListenPart:
         # the surrounding noise level
         print("Adjusting for ambient noise")
         with sr.Microphone() as source2:
-            self.r.adjust_for_ambient_noise(source2, duration=5)
+            self.r.adjust_for_ambient_noise(source2, duration=30)
         print("Ambient noise adjusted")
 
     def listen(self):
