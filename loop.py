@@ -24,9 +24,26 @@ import torch.utils.checkpoint
 from text_part import ListenPart, TextAttnPart
 
 
-def video_part():
+def video_part(device, camera_type, process_text):
+
+    """
+    This function is the main video processing engine.
+    It looks for a video input (either a webcam, Vive headset, or video file) and edits each frame one by one.
+    It returns the resulting frame in a window (or two if using the headset).
+
+    Function inputs:
+    device: STR, either "cuda" or "cpu"
+    camera_type: STR, either "headset", "webcam", or "file"
+
+    Returns:
+        Nothing, it only does a while-true loop
+    """
 
     def vision_attn_forward(self, x):
+
+        """
+        Modifies the vision attention-forward layer in CLIP's model
+        """
 
         x = self.conv1(x)  # shape = [*, width, grid, grid]
         x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]
@@ -48,6 +65,10 @@ def video_part():
 
     def transformer_attn_forward(self, x):
 
+        """
+        Modifies the transformer attention-forward object in CLIP's model
+        """
+
         z = x
         attns = []
 
@@ -58,6 +79,10 @@ def video_part():
         return z, attns
 
     def resblock_attn_forward(self, x):
+
+        """
+        Modifies the resolution of each block in the attention-forward layer in CLIP's model
+        """
 
         attn_mask = self.attn_mask.to(dtype=x.dtype, device=x.device) if self.attn_mask is not None else None
 
@@ -70,11 +95,15 @@ def video_part():
 
         return x, attn_weights
 
-    def attn_mask(frame, lastw, layer):
+    def attn_mask(frame, lastw, layer, device):
+
+        """
+        By using the above three functions, creates a mask over the input frame and returns a modified frame
+        """
 
         with torch.no_grad():
 
-            with torch.autocast("cuda"):
+            with torch.autocast(device):
                 frame = Image.fromarray(frame[:456, 612//2-228:612//2+228, :]) # 456x456 slice
                 frame = frame.resize((336, 336), Image.NEAREST)
 
@@ -97,14 +126,21 @@ def video_part():
 
                 return im2, w
 
-    # variables for the video stream
-    device = "cuda"
+    # NOTE: YOU CAN CHANGE THE MODEL THAT CLIP USES HERE
     model, preprocess = clip.load("ViT-L/14@336px", device=device)
-    model.visual.vision_attn_forward = vision_attn_forward.__get__(model.visual) # model.visual -> self
-    model.visual.transformer.transformer_attn_forward = transformer_attn_forward.__get__(model.visual.transformer) # model.visual.transformer -> self
+
+    model.visual.vision_attn_forward = vision_attn_forward.__get__(model.visual)  # model.visual -> self
+    model.visual.transformer.transformer_attn_forward = transformer_attn_forward.__get__(model.visual.transformer)  # model.visual.transformer -> self
     for layer in model.visual.transformer.resblocks:
         layer.resblock_attn_forward = resblock_attn_forward.__get__(layer)
-    vid = cv2.VideoCapture(-1)
+
+    # load in frame from camera, headset, or file
+    if camera_type == "file":
+        file = list(filter(lambda x: x.endswith(".png"), os.listdir('.')))[0]  # just picks the first one, REFACTOR TO CHANGE
+        vid = cv2.VideoCapture(file)
+    else:
+        vid = cv2.VideoCapture(-1)
+
     lastw = np.zeros((336, 336, 1))  # get the right frame size automatically
 
     # set initial values for video loop
@@ -115,27 +151,30 @@ def video_part():
 
         # loop over video frames and cycle through attention layers
         ret, frame = vid.read()
-        frame, lastw = attn_mask(frame, lastw, layer//2)
+        frame, lastw = attn_mask(frame, lastw, layer//2, device)
         layer = (layer+1) % 47
 
-        # always display "what i hear     (what i think)"
-        h_space_between_words = 110
-        v_space_between_words = 20
-        h_padding = 70
-        v_padding = 120
-        coordinates = (h_padding, v_padding)
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        fontScale = 0.3
-        color = (219, 219, 219)
-        thickness = 1
-        frame = cv2.putText(frame, "__what i hear__", coordinates, font, fontScale, color, thickness, cv2.LINE_AA)
+        # if process_text is True, show headers
+        if process_text:
 
-        coordinates = (h_padding + h_space_between_words, v_padding)
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        fontScale = 0.3
-        color = (219, 219, 219)
-        thickness = 1
-        frame = cv2.putText(frame, "__(what i think)__", coordinates, font, fontScale, color, thickness, cv2.LINE_AA)
+            # always display "what i hear     (what i think)"
+            h_space_between_words = 110
+            v_space_between_words = 20
+            h_padding = 70
+            v_padding = 120
+            coordinates = (h_padding, v_padding)
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            fontScale = 0.3
+            color = (219, 219, 219)
+            thickness = 1
+            frame = cv2.putText(frame, "__what i hear__", coordinates, font, fontScale, color, thickness, cv2.LINE_AA)
+
+            coordinates = (h_padding + h_space_between_words, v_padding)
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            fontScale = 0.3
+            color = (219, 219, 219)
+            thickness = 1
+            frame = cv2.putText(frame, "__(what i think)__", coordinates, font, fontScale, color, thickness, cv2.LINE_AA)
 
         # look for spoken words, if yes then turn on display_words variable
         if os.path.isfile('text_attns') and not display_words:
@@ -189,8 +228,15 @@ def video_part():
         # show the image
         scale = 3
         frame = cv2.resize(frame, (336 * scale, 336 * scale))
-        cv2.imshow('frame1', frame)
-        cv2.imshow('frame2', frame)
+
+        # show two frames if the user is using a headset
+        if camera_type == "headset":
+            cv2.imshow('frame1', frame)
+            cv2.imshow('frame2', frame)
+
+        # else only show one frame
+        else:
+            cv2.imshow('frame1', frame)
 
         # if display-words is on, check how long they've been up since the last word was added
         # turn display_words variable off again
@@ -217,6 +263,12 @@ def video_part():
 
 def listen_part():
 
+    """
+    Helper function that looks for a file called 'text'
+    If the file exists, then it doesn't need to call the listener.listen()
+    But if the file does NOT exist, then it calls the listener
+    """
+
     listener = ListenPart()
     while True:
         if os.path.isfile('text'):
@@ -226,6 +278,12 @@ def listen_part():
 
 
 def text_attender_part():
+
+    """
+    Helper function that looks for a file called 'text_attns'
+    If the file exists, then it doesn't need to call the textattender.text_attn()
+    But if the file does NOT exist, then it calls the textattender
+    """
 
     textattender = TextAttnPart()
     while True:
@@ -237,16 +295,26 @@ def text_attender_part():
 
 if __name__ == '__main__':
 
+    ### LOOP VARIABLES ###
+
+    device = "cuda"  # "cuda" for a cuda-capable graphics card, "cpu" otherwise
+    camera_type = "headset"  # "headset for HTC Vive, else "webcam" for USB/built-in webcam, or "file" for file
+    # if file, drop your file in the same directory as loop.py
+    process_text = True  # True or False
+
+    # begin the loop with multiprocessing
     set_start_method("spawn")
 
-    p1 = Process(target=video_part)
-    p2 = Process(target=listen_part)
-    p3 = Process(target=text_attender_part)
+    p1 = Process(target=video_part, args=(device, camera_type, process_text))
+
+    if process_text:
+        p2 = Process(target=listen_part)
+        p3 = Process(target=text_attender_part)
 
     p1.start()
-    p2.start()
-    p3.start()
 
-    #video_part()
+    if process_text:
+        p2.start()
+        p3.start()
 
     quit()
