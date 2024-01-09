@@ -10,7 +10,7 @@ decorator==5.1.1
 ecco==0.1.2
 executing==1.2.0
 filelock==3.12.2
-fonttools==4.41.0
+fonttools==4.43.0
 fsspec==2023.6.0
 ftfy==6.1.1
 huggingface-hub==0.16.4
