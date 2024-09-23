@@ -23,7 +23,7 @@ I've also configured the code to work without the headset, so it can run with a 
 
 For using a Vive headset, processing a video file, with or without text,, or modifying the live feed from your webcam, you'll need to:
 - Install CUDA, 
-- then create your venv in Python 3.10, 
+- then create your venv in Python 3.8, 
 - then install the required packages from REQUIREMENTS.txt.
 
 I used this combination:
