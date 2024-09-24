@@ -87,23 +87,32 @@ Note: This can only work on Linux! I've only tried this on Ubuntu 22.4, but you 
 ### To get Linux to recognize the camera/mic on the Vive as a webcam and the video display as a second monitor
 
 To do that, you'll need to install SteamVR for Linux (https://www.addictivetips.com/ubuntu-linux-tips/steam-vr-on-linux/), 
-then make sure you do these steps (https://github.com/ValveSoftware/SteamVR-for-Linux/blob/master/README.md).
-You might have to change some NVIDIA driver files manually. This part takes a lot of troubleshooting and following error messages. Ganbatte!
+then make sure you do these steps (http://doc-ok.org/?p=1763). 
+You need to restart your device after adding the .confg file.
+Adding that .conf file might throw your machine for a loop,so just keep holding the power button until it boots back up.
 
-So that you know, I couldn't get SteamVR to open and recognize the headset; it kept throwing a 307 error. 
-But that's alright, it didn't prevent me from using the headset-- just the process of installing SteamVR installed something critical for Ubuntu to see the headset in the system. Use 
+If, for whatever reason, you're like me and your computer fails to boot after this step, don't panic!
+Find the grub menu and use the root shell to delete that .conf file. Then reboot and try again.
 
-sudo apt-get install v4l-utils
+So that you know, I couldn't get SteamVR to open and recognize the headset; it kept throwing tons and tons of errors. 
+But that's alright, it didn't prevent me from using the headset-- just the process of installing SteamVR installed something critical for Ubuntu to see the headset in the system. 
 
-v4l2-ctl --list-devices
-
-To see if Ubuntu sees the webcam.
+Use 
+`sudo apt-get install v4l-utils`
+`v4l2-ctl --list-devices`
+to see if Ubuntu recognizes the webcam.
 Test if the camera/mic works by using "sudo cheese" in the terminal (regular "cheese" won't see the camera).
 It takes a lot of Linux troubleshooting to work!
 
+Then use 
+`xrandr --query`
+to see if it recognizes the headset as a display. 
+
+If it recognizes the headset as both a webcam and a display, then you're good to go!
+
 Random tip, don't install Chrome. It will break the driver permissions. If you already have Chrome, uninstall it and then uninstall SteamVR, and then reinstall SteamVR.
 
-If everything works, you should see two windows pop up showing the live feed from your Vive!
+Now that everything works, run loop.py and you should see two windows pop up showing the live feed from your Vive!
 Go ahead and drag those windows into the Vive view (one window per eye).
 
 ## Troubleshooting

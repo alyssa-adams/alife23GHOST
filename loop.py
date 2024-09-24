@@ -17,7 +17,7 @@ import clip
 import torch
 import torch.nn.functional as F
 import torch.utils.checkpoint
-# cuda 11.7 (on ubuntu 22.04, this worked, but I had to do it twice, install, uninstall, then reinstall: https://gist.github.com/primus852/b6bac167509e6f352efb8a462dcf1854)
+# cuda 11.7 (on ubuntu 22.04, this worked, but I had to do it twice (install, uninstall, then reinstall): https://gist.github.com/minar09/7c516972a48a9e9599c6d28cd166620c)
 # torch 1.13.1, torchaudio 0.13.1, torchvision 0.14.1: pip install torch==1.13.1+cu117 torchvision==0.14.1+cu117 torchaudio==0.13.1 --extra-index-url https://download.pytorch.org/whl/cu117
 
 # for the text
@@ -139,7 +139,11 @@ def video_part(device, camera_type, process_text):
         file = list(filter(lambda x: x.endswith(".png"), os.listdir('.')))[0]  # just picks the first one, REFACTOR TO CHANGE
         vid = cv2.VideoCapture(file)
     else:
-        vid = cv2.VideoCapture(-1)
+        #vid = cv2.VideoCapture(0)  # cv2 just randomly chooses indexes for the cameras, so you gotta fiddle with these numbers to see which one it used for the headset
+        #vid = cv2.VideoCapture(2)
+        vid = cv2.VideoCapture(4)
+
+
 
     lastw = np.zeros((336, 336, 1))  # get the right frame size automatically
 
@@ -298,7 +302,7 @@ if __name__ == '__main__':
     ### LOOP VARIABLES ###
 
     device = "cuda"  # "cuda" for a cuda-capable graphics card, "cpu" otherwise
-    camera_type = "headset"  # "headset for HTC Vive, else "webcam" for USB/built-in webcam, or "file" for file
+    camera_type = "headset"  # "headset" for HTC Vive, else "webcam" for USB/built-in webcam, or "file" for file
     # if file, drop your file in the same directory as loop.py
     process_text = True  # True or False
 

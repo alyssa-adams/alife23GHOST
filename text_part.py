@@ -2,6 +2,7 @@
 # speech to text and text to speech
 
 import speech_recognition as sr
+import sounddevice
 import ecco
 import time
 import os
