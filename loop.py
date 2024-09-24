@@ -9,7 +9,7 @@ import cv2
 import math
 import time
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFont, ImageDraw, ImageColor
 from multiprocessing import Process, set_start_method
 
 # for the video
@@ -126,6 +126,7 @@ def video_part(device, camera_type, process_text):
 
                 return im2, w
 
+
     # NOTE: YOU CAN CHANGE THE MODEL THAT CLIP USES HERE
     model, preprocess = clip.load("ViT-L/14@336px", device=device)
 
@@ -143,13 +144,15 @@ def video_part(device, camera_type, process_text):
         #vid = cv2.VideoCapture(2)
         vid = cv2.VideoCapture(4)
 
-
-
     lastw = np.zeros((336, 336, 1))  # get the right frame size automatically
 
     # set initial values for video loop
     display_words = False
     layer = 0
+    h_space_between_words = 20
+    v_space_between_words = 20
+    h_padding = 50
+    v_padding = 70
 
     while True:
 
@@ -158,27 +161,12 @@ def video_part(device, camera_type, process_text):
         frame, lastw = attn_mask(frame, lastw, layer//2, device)
         layer = (layer+1) % 47
 
-        # if process_text is True, show headers
-        if process_text:
+        # get frame size for text
+        height, width, channelssss = frame.shape
 
-            # always display "what i hear     (what i think)"
-            h_space_between_words = 110
-            v_space_between_words = 20
-            h_padding = 70
-            v_padding = 120
-            coordinates = (h_padding, v_padding)
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            fontScale = 0.3
-            color = (219, 219, 219)
-            thickness = 1
-            frame = cv2.putText(frame, "__what i hear__", coordinates, font, fontScale, color, thickness, cv2.LINE_AA)
-
-            coordinates = (h_padding + h_space_between_words, v_padding)
-            font = cv2.FONT_HERSHEY_SIMPLEX
-            fontScale = 0.3
-            color = (219, 219, 219)
-            thickness = 1
-            frame = cv2.putText(frame, "__(what i think)__", coordinates, font, fontScale, color, thickness, cv2.LINE_AA)
+        # mark center of frame to align the windows
+        frame = cv2.putText(frame, ".", (int(height/2), int(width/2)), cv2.FONT_HERSHEY_PLAIN,
+                            0.2, (219, 219, 219), 1, cv2.LINE_AA)
 
         # look for spoken words, if yes then turn on display_words variable
         if os.path.isfile('text_attns') and not display_words:
@@ -190,11 +178,11 @@ def video_part(device, camera_type, process_text):
             sentence_pieces_weights = contents[1]
             thinking_words = contents[2]
 
-            # leave the text up for a few frames
-            # also use this to wait 0.5s between displaying each word and changing the weight
+            # use this to wait 0.5s between displaying each word
             t0 = time.time()
             n = 0
             max_n = len(display_words) - 1
+            len_sentence_so_far = 0
 
         # if display_words is on, display the words on the existing frame
         if display_words:
@@ -212,31 +200,40 @@ def video_part(device, camera_type, process_text):
 
             for i, word in enumerate(sentence_piece.split()):
 
-                # display the word it heard
-                coordinates = (h_padding, v_padding + v_space_between_words * (i+1))
-                font = cv2.FONT_HERSHEY_SIMPLEX
-                fontScale = sentence_pieces_weights[n][i] * 0.6
-                color = (219, 219, 219)
-                thickness = 1
-                frame = cv2.putText(frame, word, coordinates, font, fontScale, color, thickness, cv2.LINE_AA)
+                # Make frame into PIL Image
+                im_p = Image.fromarray(frame)
 
-                # display the word it thought
-                thinking_word = thinking_words.split()[i]
-                coordinates = (h_padding + h_space_between_words, v_padding + v_space_between_words * (i+1))
-                font = cv2.FONT_HERSHEY_SIMPLEX
-                fontScale = 0.3
-                color = (219, 219, 219)
-                thickness = 1
-                frame = cv2.putText(frame, "(" + thinking_word + ")", coordinates, font, fontScale, color, thickness, cv2.LINE_AA)
+                # Get a drawing context
+                draw = ImageDraw.Draw(im_p)
+                monospace = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeMono.ttf",
+                                               30 * sentence_pieces_weights[max_n][i])
+
+                # set the position of the display word
+                coordinates = (h_padding + h_space_between_words * i + i * len(word), v_padding + v_space_between_words * i)
+                draw.text(coordinates, word, (255, 255, 255), font=monospace)
+
+                # draw the predicted word at the bottom of the frame
+                if len(thinking_words) > 0:
+                    thinking_word = thinking_words.split()[i]
+                    len_sentence_so_far += len(thinking_word)
+                    coordinates = (h_padding + len_sentence_so_far * 10, 250)
+                    monospace = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeMono.ttf", 20)
+                    draw.text(coordinates, thinking_word, (6, 40, 209), font=monospace)
+
+                # Convert frame back to OpenCV image
+                frame = np.array(im_p)
+
 
         # show the image
         scale = 3
         frame = cv2.resize(frame, (336 * scale, 336 * scale))
+        len_sentence_so_far = 0
 
         # show two frames if the user is using a headset
         if camera_type == "headset":
             cv2.imshow('frame1', frame)
             cv2.imshow('frame2', frame)
+            cv2.imshow('frame3', frame)
 
         # else only show one frame
         else:

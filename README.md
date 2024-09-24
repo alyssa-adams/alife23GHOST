@@ -117,6 +117,8 @@ Go ahead and drag those windows into the Vive view (one window per eye).
 
 ## Troubleshooting
 
+If the loop crashes and won't restart due to some mysterious error, then delete the text and text_attn files.
+
 None of this was tested on a Windows machine or OSX. As a result, this script is prone to having a ton of bugs. Please post any issues that occur and I will do my best to fix them.
 
 Forks and collaborations welcome! I'm happy to work with anyone who wants to use/extend/change this script.

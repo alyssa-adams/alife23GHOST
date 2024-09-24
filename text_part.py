@@ -18,13 +18,12 @@ class ListenPart:
         self.r.phrase_threshold = 0.05  # minimum seconds of speaking audio before we consider the speaking audio a phrase - values below this are ignored (for filtering out clicks and pops)
         self.r.non_speaking_duration = 0.05  # seconds of non-speaking audio to keep on both sides of the recording
 
-        # TODO: reset this is silence for more than 10 seconds
         # wait for a second to let the recognizer
         # adjust the energy threshold based on
         # the surrounding noise level
         print("Adjusting for ambient noise")
         with sr.Microphone() as source2:
-            self.r.adjust_for_ambient_noise(source2, duration=30)
+            self.r.adjust_for_ambient_noise(source2, duration=10)
         print("Ambient noise adjusted")
 
     def listen(self):
@@ -93,7 +92,7 @@ class TextAttnPart:
                     sentence_pieces_weights.append(list(sentence_pieces_weight))
 
                     # guess the output
-                    output_guess = output.tokens[0][-1]  # TODO: turn into regular text?
+                    output_guess = output.tokens[0][-1].encode("ascii", errors="ignore").decode()
                     output_guesses.append(output_guess)
 
                 # connect the thoughts into a sentence
