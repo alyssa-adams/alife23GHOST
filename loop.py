@@ -216,7 +216,7 @@ def video_part(device, camera_type, process_text):
                 if len(thinking_words) > 0:
                     thinking_word = thinking_words.split()[i]
                     len_sentence_so_far += len(thinking_word)
-                    coordinates = (h_padding + len_sentence_so_far * 10, 250)
+                    coordinates = (h_padding + len_sentence_so_far * 10, 200)
                     monospace = ImageFont.truetype("/usr/share/fonts/truetype/freefont/FreeMono.ttf", 20)
                     draw.text(coordinates, thinking_word, (6, 40, 209), font=monospace)
 
